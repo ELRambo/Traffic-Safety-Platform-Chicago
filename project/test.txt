@@ -1,0 +1,11 @@
+09/01/2022 01:00:00 PM
+
+-87.6354
+ 41.8789
+-87.6742
+41.8807
+
+select id, date from crashes 
+WHERE CAST(to_timestamp(date, 'MM/DD/YYYY HH:MI:SS AM') AS DATE)
+between to_date('9/2/2022', 'MM/DD/YYYY')
+and to_date('9/2/2022', 'MM/DD/YYYY')
