@@ -210,7 +210,7 @@ app.get('/api/get_route_score_geojson', (req, res) => {
     routes AS (
         -- Compute the top 3 shortest paths between the start and end nodes using pgr_ksp
         SELECT * FROM pgr_ksp(
-            'SELECT id, source, target, length AS cost FROM streets',
+            'SELECT id, name, source, target, length AS cost FROM streets',
             (SELECT node_id FROM start_node),
             (SELECT node_id FROM end_node),
             3,  -- Get the 3 shortest paths
@@ -237,7 +237,7 @@ app.get('/api/get_route_score_geojson', (req, res) => {
         FROM (
             SELECT 'Feature' AS type, 
                   ST_AsGeoJSON(s.geometry)::json AS geometry,  -- Convert the street geometry to GeoJSON
-                  row_to_json((SELECT l FROM (SELECT r.path_id, rs.total_cost, rs.avg_safety_score) AS l)) AS properties
+                  row_to_json((SELECT l FROM (SELECT r.path_id, rs.total_cost, rs.avg_safety_score, s.name, s.prim_contr_factor) AS l)) AS properties
             FROM streets s
             JOIN routes r ON s.id = r.edge  -- Join the streets with routes
             JOIN route_safety rs ON r.path_id = rs.path_id  -- Join to get the calculated safety score and cost
@@ -287,82 +287,11 @@ app.post ('/report_accidents', (req , res) => {
             res.status(200).send('Accident report successfully added.');
         });
     });
-});
+});   
 
-app.get ('/api/get_closest_marker', (req , res) => {
-  console.log ('Request received on the server to send closest marker');
-  var lat=req.query.lat;
-  var lon=req.query.lon;
-  var q='with tbl_line_to_closest_point as\n' +
-      '(\n' +
-      '\twith query_point as\n' +
-      '\t(\n' +
-      '\t\tselect (ST_GeomFromText(\'POINT('+lon+' '+lat+')\',4326)) as geom\n' +
-      '\t)\n' +
-      '\tselect \tid,name,\n' +
-      '\t\tst_distance(st_transform(m.geom,32633),st_transform((qp.geom),32633)) as distance,\n' +
-      '\t\tST_MakeLine(m.geom,qp.geom) as line_geom\n' +
-      '\tfrom \n' +
-      '\ttbl_markers m ,query_point qp\n' +
-      '\torder by st_distance(st_transform(m.geom,32633),st_transform(qp.geom,32633)) limit 1\n' +
-      ') select row_to_json(fc)FROM ( \n' +
-      '\tSELECT \'FeatureCollection\' As type, array_to_json(array_agg(f)) As features FROM (\n' +
-      '\t\tSELECT \'Feature\' As type\n' +
-      '                    , ST_AsGeoJSON(lg.line_geom)::json As geometry\n' +
-      '                    , row_to_json((SELECT l FROM (SELECT id,name,distance) As l)) As properties\n' +
-      '                   FROM tbl_line_to_closest_point As lg   ) As f )  As fc;\n';
-  //console.log(q);
-
-  pool.query(q, (err,dbResponse) =>
-      {
-          if (err) console.log(err);
-          res.send(dbResponse.rows);
-      }
-  );
-});
-
-app.get ('/api/draw_buffer_on_closest_marker', (req , res) => {
-  console.log ('Request received on the server to draw buffer on the closest marker');
-  var lat=req.query.lat;
-  var lon=req.query.lon;
-  const q = `
-    WITH tbl_buffer_to_closest_point AS (
-      WITH query_point AS (
-        SELECT ST_GeomFromText('POINT(${lon} ${lat})', 4326) AS geom
-      )
-      SELECT id, name,
-        ST_Distance(ST_Transform(m.geom, 32633), ST_Transform(qp.geom, 32633)) AS distance,
-        ST_Buffer(m.geom, 0.005) AS buffer_geom
-      FROM tbl_markers m, query_point qp
-      ORDER BY ST_Distance(ST_Transform(m.geom, 32633), ST_Transform(qp.geom, 32633))
-      LIMIT 1
-    )
-    SELECT row_to_json(fc) FROM (
-      SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features
-      FROM (
-        SELECT 'Feature' AS type,
-          ST_AsGeoJSON(lg.buffer_geom)::json AS geometry,
-          row_to_json((SELECT l FROM (SELECT id, name, distance) AS l)) AS properties
-        FROM tbl_buffer_to_closest_point AS lg
-      ) AS f
-    ) AS fc;
-  `;
-
-  //console.log(q);
-
-  pool.query(q, (err,dbResponse) =>
-      {
-          if (err) console.log(err);
-          res.send(dbResponse.rows);
-      }
-  );
-});
-   
-
-app.get('/index', (req, res) => res.sendFile(__dirname + '/index.html'))
-app.get('/map', (req, res) => res.sendFile(__dirname + '/map.html'))
-app.get('/statistics', (req, res) => res.sendFile(__dirname + '/statistics.html'))
-app.get('/test', (req, res) => res.sendFile(__dirname + '/test.html'))
+app.get('/index', (req, res) => res.sendFile(__dirname + '/html/index.html'))
+app.get('/map', (req, res) => res.sendFile(__dirname + '/html/map.html'))
+app.get('/statistics', (req, res) => res.sendFile(__dirname + '/html/statistics.html'))
 
 app.listen(3000, () => console.log('Example app listening on port 3000!'));
 

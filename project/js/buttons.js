@@ -423,10 +423,16 @@ function queryCrashPointsbyNeighbourhood(startDate, endDate, neighbourhoodName){
                         if (speeds) {
                             speeds.bringToBack(); 
                         }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
+                        }
                     });            
                     map.on('overlayremove', function(e) {
                         if (speeds) {
                             speeds.bringToBack(); // Ensure polygon stays at the back if re-added
+                        }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
                         }
                     });     
                 }
@@ -510,10 +516,16 @@ function queryCrashPointsCustom(startDate, endDate, layer){
                         if (speeds) {
                             speeds.bringToBack(); 
                         }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
+                        }
                     });            
                     map.on('overlayremove', function(e) {
                         if (speeds) {
                             speeds.bringToBack(); // Ensure polygon stays at the back if re-added
+                        }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
                         }
                     });     
                 }
@@ -575,7 +587,9 @@ function addLegend(feature, layer ){
                 '<i style="background:' + color 
                 + '; width: 18px; height: 18px; display: inline-block; margin-right: 8px; font-size: 18px;"></i> '
                 + '<span style="font-size: 18px;">' 
-                + (Math.round(grades[i] * 100) + '&ndash;' + Math.round(grades[i + 1] * 100) + '</span><br>');
+                + (i === 0 ? '<' + Math.round(grades[i+1] * 100) + '<br>'
+                : Math.round(grades[i] * 100) + '&ndash;' + Math.round(grades[i + 1] * 100) + '<br>') 
+                + '</span>'
         }
 
         return div;
@@ -654,10 +668,16 @@ function calculateSafetyScore() {
                     if (speeds) {
                         speeds.bringToBack();
                     }
+                    if (neighbourhoods){
+                        neighbourhoods.bringToBack();
+                    }
                 });
                 map.on('overlayremove', function(e) {
                     if (speeds) {
                         speeds.bringToBack();
+                    }
+                    if (neighbourhoods){
+                        neighbourhoods.bringToBack();
                     }
                 });
 
@@ -695,13 +715,64 @@ function calculateSafetyScore() {
 }
 
 var routes
+// safety alert info
+var info = L.control({ position:'bottomright'}); // create a control
+info.onAdd = function (map) {   
+    this._div = L.DomUtil.create('div','info'); // create a div, its type is info
+    
+    this._div.style.width = '250px'; // Set the width
+    this._div.style.height = 'auto';  // Set the height, or a fixed height like '200px'
+    this._div.style.padding = '10px';  // Add some padding
+    this._div.style.backgroundColor = 'white'; // Background color
+    this._div.style.border = '1px solid #ccc'; // Border
+    this._div.style.borderRadius = '5px'; // Rounded corners
+
+    this.update();
+    return this._div;
+};
+info.update = function (props) {
+    this._div.innerHTML = '<h3>Safety Information</h3>' + (props ?
+        '<span style="font-size: 20px;">' + '<b>' +'Street Name: ' + props.name + '</b><br />' + '</span>'
+        + '<span style="font-size: 20px;">' 
+        + 'Safety Alert: ' 
+        + (props.prim_contr_factor ? '<p style="font-size: 20px; color:red;">Accident-prone segment. <br>Primary contributor: </p>' 
+            + '<p style="font-size: 18px; color:red;">' + props.prim_contr_factor : 'None</p>') 
+        + '</span>'
+        : '<span style="font-size: 25px;">' + 'Hover over a street segment to see safety alert') 
+        + '</span>';
+};
+function highlightFeature (e) {
+	var layer = e.target;
+
+	layer.setStyle({
+		weight: 8,
+	});
+
+	layer.bringToFront();
+
+	info.update(layer.feature.properties);
+}
+function resetHighlight (e) {
+	routes.resetStyle(e.target);
+	info.update();
+}
 function onEachRoute(feature, layer){
     var popupContent = "Length: " + parseFloat(feature.properties.total_cost).toFixed(2) + 'km' +  
                         "<br>Safety Score: " + parseFloat(feature.properties.avg_safety_score).toFixed(2) ;
     layer.bindPopup(popupContent);
+
+    layer.on({
+		mouseover: highlightFeature,
+		mouseout: resetHighlight,
+	});
 }
-function getRouteColorById(id) {
-    // Assign different colors for different path_ids
+function getRouteColorById(id, primContrFactor) {
+    // If prim_contr_factor is not null, assign red color
+    if (primContrFactor !== null) {
+        return '#d62728';  // Red for streets with a contributing factor
+    }
+
+    // Otherwise, assign colors based on the path_id
     switch (id) {
         case 1:
             return '#1f77b4';  // Blue for path_id 1
@@ -715,10 +786,11 @@ function getRouteColorById(id) {
 }
 function styleEachRoute(feature) {
     let id = parseInt(feature.properties.path_id);
+    let primContrFactor = feature.properties.prim_contr_factor;
 
-    // Define the style based on safety score
+    // Define the style based on safety score and prim_contr_factor
     return {
-        color: getRouteColorById(id),  // Line color
+        color: getRouteColorById(id, primContrFactor),  // Line color
         weight: 5,  // Line thickness
         opacity: 0.8  // Line opacity
     };
@@ -789,19 +861,47 @@ function calculateRouteScore(lat1, lnt1, lat2, lnt2){
     
                     updateMessageBox("Route safety score loaded.");
                     console.log('Route safety score loaded.');
+
+                    info.addTo(map);
     
                     map.on('overlayadd', function(e) {
                         if (speeds) {
                             speeds.bringToBack();
+                        }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
                         }
                     });
                     map.on('overlayremove', function(e) {
                         if (speeds) {
                             speeds.bringToBack();
                         }
+                        if (neighbourhoods){
+                            neighbourhoods.bringToBack();
+                        }
                     });
     
                 }
+
+                // Check if legend should be displayed
+                function checkDisplayLineInfo() {
+                    if (map.hasLayer(routes)) {
+                        info.getContainer().style.display = 'block';
+                    } else {
+                        info.getContainer().style.display = 'none';
+                    }
+                }
+
+                map.on('overlayadd', function(e) {
+                    if (e.layer == routes) {
+                        checkDisplayLineInfo();
+                    }
+                });
+                map.on('overlayremove', function(e) {
+                    if (e.layer == routes) {
+                        checkDisplayLineInfo();
+                    }
+                });
 
                 // Resolve the Promise after the success logic completes
                 resolve();

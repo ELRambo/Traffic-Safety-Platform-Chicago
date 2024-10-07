@@ -69,7 +69,7 @@ function onEachCam ( feature , layer ) {
 }
 var camIcon = L.icon({
     iconUrl: 'cam.png', // URL to your custom icon image
-    iconSize: [45, 45], // Size of the icon [width, height]
+    iconSize: [35, 35], // Size of the icon [width, height]
     iconAnchor: [12, 41], // Point of the icon which will correspond to marker's location
     popupAnchor: [1, -34], // Point from which the popup should open relative to the iconAnchor
 });
