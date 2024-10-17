@@ -14,7 +14,7 @@ app.use(function (req, res, next) {
 });
 
 const { Pool } = require('pg');
-const pool = new Pool({ user: 'postgres', host: 'localhost', database: 'SDB', schema: 'project', password: '', port: 5432});
+const pool = new Pool({ user: 'postgres', host: 'localhost', database: 'SDB', schema: 'project', password: 'zjy160048', port: 5432});
 pool.connect((err, client, release) => {
     if (err) {
       console.error('Error acquiring client', err.stack);
@@ -93,7 +93,7 @@ app.get('/api/get_neighbourhoods_geojson', (req, res) => {
         SELECT 'Feature' As type, 
                ST_AsGeoJSON(lg.geometry)::json As geometry, 
                row_to_json((SELECT l FROM (SELECT pri_neigh) As l)) As properties 
-        FROM neighbourhoods As lg
+        FROM project.neighbourhoods As lg
       ) As f
     ) As fc;
   `;
@@ -269,12 +269,14 @@ app.post ('/report_accidents', (req , res) => {
         var rowCount = parseInt(countResult.rows[0].total) + 1; // Increment by 1 for the new ID
 
         // Insert the new accident report with the calculated id
-        var q = "INSERT INTO crashes(id, date, inj_total, lnt, lat, geometry) VALUES (" +
+        var q = "INSERT INTO crashes2(gid, date, prim_contr, traffic_co, inj_total, lnt, lat, geometry) VALUES (" +
             rowCount + "," +
             "'" + req.body.date + "'," +
+            "'" + req.body.prim_contr + "'," +
+            "'" + req.body.traffic_co + "'," +
             req.body.inj_total + "," +
             req.body.lnt + "," +
-            req.body.lat + "," +
+            req.body.lat + "," + 
             "ST_GeomFromText('POINT(" + req.body.lnt + " " + req.body.lat + ")', 4326));";
 
         pool.query(q, (err, dbResponse) => {

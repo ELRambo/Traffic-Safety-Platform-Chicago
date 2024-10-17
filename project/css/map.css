@@ -50,6 +50,22 @@ body, html {
     padding-top: 20px; /* Optional: add padding at the top */
 }
 
+#accidentFormWindow {
+    width: 300px; /* Set a default width */
+    height: auto; /* Allow height to adjust based on content */
+    max-width: 80vw; /* The form will take up to 80% of the viewport width */
+    max-height: 80vh; /* The form will take up to 80% of the viewport height */
+    overflow-y: auto; /* Scrollable if content exceeds height */
+}
+
+#routeFormWindow {
+    width: 300px; /* Set a default width */
+    height: auto; /* Allow height to adjust based on content */
+    max-width: 80vw; /* The form will take up to 80% of the viewport width */
+    max-height: 80vh; /* The form will take up to 80% of the viewport height */
+    overflow-y: auto; /* Scrollable if content exceeds height */
+}
+
 .dropdown-menu .dropdown-submenu {
     display: none;
     position: absolute;

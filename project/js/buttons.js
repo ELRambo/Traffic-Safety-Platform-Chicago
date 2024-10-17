@@ -188,7 +188,10 @@ $(document).ready(function() {
     
 
     // custom routes
-    $('#originBtn').on('click', function(){
+    $('#originBtn').on('click', function(e){
+        // Prevent the click event from propagating to the map
+        e.stopPropagation();
+
         alert("Click on the map to enter the location for your origin.");
 
         map.on('click', function(e) {
@@ -204,7 +207,10 @@ Latitude: ${lat}, Longitude: ${lng}`);
             map.off('click'); // Disable and unbind map click event listener after selecting the location
         });
     })
-    $('#destinationBtn').on('click', function(){
+    $('#destinationBtn').on('click', function(e){
+        // Prevent the click event from propagating to the map
+        e.stopPropagation();
+
         alert("Click on the map to enter the location for your destination.");
 
         map.on('click', function(e) {
@@ -254,7 +260,10 @@ Latitude: ${lat}, Longitude: ${lng}`);
     })
 
     // ---------------------------- Report Accidents ----------------------------//
-    $('#chooseLocationBtn').on('click', function() {
+    $('#chooseLocationBtn').on('click', function(e) {
+         // Prevent the click event from propagating to the map
+        e.stopPropagation();
+
         alert("Click on the map to enter the location for the accident.");
 
         map.on('click', function(e) {
@@ -277,6 +286,8 @@ Latitude: ${lat}, Longitude: ${lng}`);
         const inj = $('#inj_total').val();
         const lat = $('#latitude').val();
         const lnt = $('#longitude').val();
+        const prim_contr = $('#prim_contr').val();
+        const traffic_co = $('#traffic_co').val();
 
         // Validate date (assuming isValidDate is a function you've defined)
         if (!isValidDate(date)) {
@@ -295,7 +306,9 @@ Latitude: ${lat}, Longitude: ${lng}`);
             date: date,
             inj_total: inj,
             lat: lat,
-            lnt: lnt
+            lnt: lnt,
+            prim_contr: prim_contr,
+            traffic_co: traffic_co
         }
         $.ajax (
         {
@@ -732,13 +745,13 @@ info.onAdd = function (map) {
 };
 info.update = function (props) {
     this._div.innerHTML = '<h3>Safety Information</h3>' + (props ?
-        '<span style="font-size: 20px;">' + '<b>' +'Street Name: ' + props.name + '</b><br />' + '</span>'
-        + '<span style="font-size: 20px;">' 
+        '<span style="font-size: 17px;">' + '<b>' +'Street Name: ' + props.name + '</b><br />' + '</span>'
+        + '<span style="font-size: 17px;">' 
         + 'Safety Alert: ' 
-        + (props.prim_contr_factor ? '<p style="font-size: 20px; color:red;">Accident-prone segment. <br>Primary contributor: </p>' 
-            + '<p style="font-size: 18px; color:red;">' + props.prim_contr_factor : 'None</p>') 
+        + (props.prim_contr_factor ? '<p style="font-size: 17px; color:red;">Accident-prone segment. <br>Primary contributor: </p>' 
+            + '<p style="font-size: 15px; color:red;">' + props.prim_contr_factor : 'None</p>') 
         + '</span>'
-        : '<span style="font-size: 25px;">' + 'Hover over a street segment to see safety alert') 
+        : '<span style="font-size: 17px;">' + 'Hover over a red segment to see safety alert') 
         + '</span>';
 };
 function highlightFeature (e) {
@@ -759,7 +772,7 @@ function resetHighlight (e) {
 function onEachRoute(feature, layer){
     var popupContent = "Length: " + parseFloat(feature.properties.total_cost).toFixed(2) + 'km' +  
                         "<br>Safety Score: " + parseFloat(feature.properties.avg_safety_score).toFixed(2) ;
-    layer.bindPopup(popupContent);
+    layer.bindPopup(popupContent).openPopup();
 
     layer.on({
 		mouseover: highlightFeature,
