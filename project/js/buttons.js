@@ -185,8 +185,6 @@ $(document).ready(function() {
         }, 50);
     });
 
-    
-
     // custom routes
     $('#originBtn').on('click', function(e){
         // Prevent the click event from propagating to the map
@@ -200,9 +198,6 @@ $(document).ready(function() {
 
             $('#lat1').val(lat);
             $('#lnt1').val(lng);
-
-            alert(`Location recorded! Return to the form to submit.
-Latitude: ${lat}, Longitude: ${lng}`);
             
             map.off('click'); // Disable and unbind map click event listener after selecting the location
         });
@@ -219,9 +214,6 @@ Latitude: ${lat}, Longitude: ${lng}`);
 
             $('#lat2').val(lat);
             $('#lnt2').val(lng);
-
-            alert(`Location recorded! Return to the form to submit.
-Latitude: ${lat}, Longitude: ${lng}`);
             
             map.off('click'); // Disable and unbind map click event listener after selecting the location
         });
@@ -272,9 +264,6 @@ Latitude: ${lat}, Longitude: ${lng}`);
 
             $('#latitude').val(lat);
             $('#longitude').val(lng);
-
-            alert(`Location recorded! Return to the form to submit.
-Latitude: ${lat}, Longitude: ${lng}`);
             
             map.off('click'); // Disable and unbind map click event listener after selecting the location
         });
@@ -744,16 +733,27 @@ info.onAdd = function (map) {
     return this._div;
 };
 info.update = function (props) {
-    this._div.innerHTML = '<h3>Safety Information</h3>' + (props ?
-        '<span style="font-size: 17px;">' + '<b>' +'Street Name: ' + props.name + '</b><br />' + '</span>'
-        + '<span style="font-size: 17px;">' 
-        + 'Safety Alert: ' 
-        + (props.prim_contr_factor ? '<p style="font-size: 17px; color:red;">Accident-prone segment. <br>Primary contributor: </p>' 
-            + '<p style="font-size: 15px; color:red;">' + props.prim_contr_factor : 'None</p>') 
-        + '</span>'
-        : '<span style="font-size: 17px;">' + 'Hover over a red segment to see safety alert') 
-        + '</span>';
+    if (props && props.street_details && props.street_details.length > 0) {
+        let segment = props.street_details[0];  // Access the first segment of the street_details array
+
+        this._div.innerHTML = '<h3>Safety Information</h3>' +
+            '<span style="font-size: 17px;">' +
+            '<b>Street Name: ' + segment.name + '</b><br />' +
+            '</span>' +
+            '<span style="font-size: 17px;">' +
+            'Safety Alert: ' + F
+            (segment.prim_contr_factor ? 
+                '<p style="font-size: 17px; color:red;">Accident-prone segment. <br>Primary contributor: ' +
+                '<span style="font-size: 15px; color:red;">' + segment.prim_contr_factor + '</span></p>' :
+                'None') +
+            '</span>';
+    } else {
+        // Default message when no segment is selected or available
+        this._div.innerHTML = '<h3>Safety Information</h3>' +
+            '<span style="font-size: 17px;">Hover over a red segment to see safety alert</span>';
+    }
 };
+
 function highlightFeature (e) {
 	var layer = e.target;
 
@@ -770,7 +770,8 @@ function resetHighlight (e) {
 	info.update();
 }
 function onEachRoute(feature, layer){
-    var popupContent = "Length: " + parseFloat(feature.properties.total_cost).toFixed(2) + 'km' +  
+    var popupContent = feature.properties.route_type + " " + "route" +
+                        "<br>Length: " + parseFloat(feature.properties.total_cost).toFixed(2) + 'km' +  
                         "<br>Safety Score: " + parseFloat(feature.properties.avg_safety_score).toFixed(2) ;
     layer.bindPopup(popupContent).openPopup();
 
@@ -779,31 +780,25 @@ function onEachRoute(feature, layer){
 		mouseout: resetHighlight,
 	});
 }
-function getRouteColorById(id, primContrFactor) {
+function getRouteColorByType(primContrFactor, routeType) {
     // If prim_contr_factor is not null, assign red color
     if (primContrFactor !== null) {
         return '#d62728';  // Red for streets with a contributing factor
     }
-
-    // Otherwise, assign colors based on the path_id
-    switch (id) {
-        case 1:
-            return '#1f77b4';  // Blue for path_id 1
-        case 2:
-            return '#ff7f0e';  // Orange for path_id 2
-        case 3:
-            return '#2ca02c';  // Green for path_id 3
-        default:
-            return '#d62728';  // Red for any other path_id
+    switch (routeType) {
+        case 'shortest':
+            return '#1f77b4';  // Blue for shortest
+        case 'safest':
+            return '#2ca02c';  // Green for safest
     }
 }
 function styleEachRoute(feature) {
-    let id = parseInt(feature.properties.path_id);
-    let primContrFactor = feature.properties.prim_contr_factor;
+    let primContrFactor = feature.properties.street_details[0]?.prim_contr_factor;
+    let routeType = feature.properties.route_type;
 
     // Define the style based on safety score and prim_contr_factor
     return {
-        color: getRouteColorById(id, primContrFactor),  // Line color
+        color: getRouteColorByType(primContrFactor, routeType),  // Line color
         weight: 5,  // Line thickness
         opacity: 0.8  // Line opacity
     };
