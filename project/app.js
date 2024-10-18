@@ -14,7 +14,7 @@ app.use(function (req, res, next) {
 });
 
 const { Pool } = require('pg');
-const pool = new Pool({ user: 'postgres', host: 'localhost', database: 'SDB', schema: 'project', password: 'zjy160048', port: 5432});
+const pool = new Pool({ user: 'postgres', host: 'localhost', database: 'SDB', schema: 'project', password: '', port: 5432});
 pool.connect((err, client, release) => {
     if (err) {
       console.error('Error acquiring client', err.stack);
