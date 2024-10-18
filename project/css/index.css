@@ -41,7 +41,7 @@
 
 .background-image1 {
     position: relative;
-    height: 700px;
+    height: 80vh;
     width: 100%;
     display: flex;
     justify-content: center;
@@ -67,7 +67,7 @@
 }
 .background-image2 {
     position: relative;
-    height: 700px;
+    height: 80vh;
     width: 100%;
     display: flex;
     justify-content: center;
@@ -110,5 +110,5 @@
 .footer {
     clear: both;
     text-align: center;
-    padding: 30px;
+    padding: 5vh;
 }
