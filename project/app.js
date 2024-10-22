@@ -299,10 +299,10 @@ app.get('/api/get_route_score_geojson', (req, res) => {
 
 
 app.post ('/report_accidents', (req , res) => {
-    console.log ('Data recieved:' + JSON.stringify (req.body));
+    console.log ('Data received:' + JSON.stringify (req.body));
 
     // Get the current length (row count) of the `crashes` table
-    var countQuery = "SELECT COUNT(*) AS total FROM crashes";
+    var countQuery = "SELECT COUNT(*) AS total FROM crashes2;";
 
     pool.query(countQuery, (err, countResult) => {
         if (err) {
