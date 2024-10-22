@@ -46,7 +46,7 @@ $(document).ready(function() {
         neighbourhoods.on('click', function(e) {
             // Check if startDate and endDate are null
             if (!startDate || !endDate) {
-                alert("Please select date range first.");
+                alert("Please select a date range first.");
                 return; // Exit the click handler if dates are not set
             }
     
@@ -394,7 +394,7 @@ function queryCrashPointsbyNeighbourhood(startDate, endDate, neighbourhoodName){
             success: function(data) {
 
                 if (data[0].row_to_json.features === null) {
-                    alert("No accidents found.");
+                    alert("No accidents are found.");
                     
                 } else {
                     crashes = L.geoJSON(data[0].row_to_json, {
@@ -479,6 +479,7 @@ function queryCrashPointsCustom(startDate, endDate, layer){
         }
         
         updateMessageBox("Querying accidents in selected locations...")
+        
         $.ajax ({
             url: '/api/get_crashes_byCustom_geojson',
             method: 'GET',
@@ -487,7 +488,7 @@ function queryCrashPointsCustom(startDate, endDate, layer){
             success: function(data) {
 
                 if (data[0].row_to_json.features === null) {
-                    alert("No accidents found.");
+                    alert("No accidents are found.");
                     
                 } else {
                     crashes = L.geoJSON(data[0].row_to_json, {
@@ -549,8 +550,8 @@ function queryCrashPointsCustom(startDate, endDate, layer){
 //---------------------------- Score Functions ----------------------------//
 // load scores
 var scores;
-var colorScale = chroma.scale(['red', 'yellow', 'green']).mode('lab');
 
+var colorScale = chroma.scale(['red', 'yellow', 'green']).mode('lab');
 // Function to normalize safety score and map it to a color
 function getColor(safety, minSafety, maxSafety) {
     if (minSafety === maxSafety) {
@@ -574,7 +575,7 @@ function onEachScore(feature, layer) {
                         "<br>Safety Score: " + parseFloat(feature.properties.safety).toFixed(2) ;
     layer.bindPopup(popupContent);
 }
-function addLegend(feature, layer ){
+function addLegend(feature, layer){
     var legend = L.control({position: 'bottomright'});
 
     legend.onAdd = function (map) {
@@ -741,7 +742,7 @@ info.update = function (props) {
             '<b>Street Name: ' + segment.name + '</b><br />' +
             '</span>' +
             '<span style="font-size: 17px;">' +
-            'Safety Alert: ' + F
+            'Safety Alert: ' + 
             (segment.prim_contr_factor ? 
                 '<p style="font-size: 17px; color:red;">Accident-prone segment. <br>Primary contributor: ' +
                 '<span style="font-size: 15px; color:red;">' + segment.prim_contr_factor + '</span></p>' :
@@ -750,7 +751,9 @@ info.update = function (props) {
     } else {
         // Default message when no segment is selected or available
         this._div.innerHTML = '<h3>Safety Information</h3>' +
-            '<span style="font-size: 17px;">Hover over a red segment to see safety alert</span>';
+            '<span style="font-size: 17px; color: blue;">Blue line: shortest route</span>' +
+            '<br><span style="font-size: 17px; color: green;">Green line: safest route</span>' + 
+            '<br><span style="font-size: 17px;">Hover over a red segment to see safety alert</span>';
     }
 };
 
@@ -773,8 +776,10 @@ function onEachRoute(feature, layer){
     var popupContent = feature.properties.route_type + " " + "route" +
                         "<br>Length: " + parseFloat(feature.properties.total_cost).toFixed(2) + 'km' +  
                         "<br>Safety Score: " + parseFloat(feature.properties.avg_safety_score).toFixed(2) ;
-    layer.bindPopup(popupContent).openPopup();
 
+    layer.bindPopup(popupContent, { autoClose: false });
+
+    // event listener
     layer.on({
 		mouseover: highlightFeature,
 		mouseout: resetHighlight,
@@ -845,7 +850,7 @@ function calculateRouteScore(lat1, lnt1, lat2, lnt2){
             success: function(data) {
 
                 if (data[0].row_to_json.features === null) {
-                    alert("No routes found.");
+                    alert("No routes are found.");
                     
                 } else{
                     var features = data[0].row_to_json.features;
