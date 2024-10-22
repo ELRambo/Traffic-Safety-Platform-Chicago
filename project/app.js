@@ -197,51 +197,97 @@ app.get('/api/get_route_score_geojson', (req, res) => {
         -- Find the closest street node to the starting point
         SELECT id AS node_id
         FROM streets_vertices_pgr s
-        ORDER BY s.the_geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)  -- Starting point (Navy Pier)
+        ORDER BY s.the_geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
         LIMIT 1
     ),
     end_node AS (
         -- Find the closest street node to the ending point
         SELECT id AS node_id
         FROM streets_vertices_pgr s
-        ORDER BY s.the_geom <-> ST_SetSRID(ST_MakePoint($3, $4), 4326)  -- Ending point (United Center)
+        ORDER BY s.the_geom <-> ST_SetSRID(ST_MakePoint($3, $4), 4326)
         LIMIT 1
     ),
-    routes AS (
-        -- Compute the top 3 shortest paths between the start and end nodes using pgr_ksp
-        SELECT * FROM pgr_ksp(
-            'SELECT id, name, source, target, length AS cost FROM streets',
+    shortest_route AS (
+        -- Compute the shortest path between the start and end nodes
+        SELECT * FROM pgr_dijkstra(
+            'SELECT id, source, target, length AS cost FROM streets',
             (SELECT node_id FROM start_node),
             (SELECT node_id FROM end_node),
-            3,  -- Get the 3 shortest paths
             directed := false
         )
     ),
-    route_safety AS (
-        -- Calculate the average safety score and total cost for each of the 3 shortest paths
-        SELECT 
-            r.path_id,  -- The unique path identifier
-            SUM(r.cost/1000) AS total_cost,  -- The total cost of the path
-            AVG(s.safety) AS avg_safety_score  -- Average safety score of the streets in the path
-        FROM routes r
-        JOIN streets s ON s.id = r.edge  -- Join streets on the edge ID (which represents a street segment)
+    safest_route AS (
+        -- Compute the safest path by prioritizing safety scores (using a custom weight calculation)
+        SELECT * FROM pgr_dijkstra(
+            'SELECT id, source, target, length, 
+			COALESCE((1.0 / (safety + 1)), 1.0 / ((SELECT AVG(safety) FROM streets WHERE safety IS NOT NULL))) AS cost 
+			FROM streets',
+            (SELECT node_id FROM start_node),
+            (SELECT node_id FROM end_node),
+            directed := false
+        )
+    ),
+    shortest_route_safety AS (
+        -- Calculate the total cost and average safety score for the shortest path
+        SELECT
+            SUM(r.cost)/1000 AS total_cost,  -- The total length of the path
+            AVG(s.safety) AS avg_safety_score,  -- Average safety score of the streets in the path
+			ST_Union(s.geometry) AS geom
+        FROM shortest_route r
+        JOIN streets s ON s.id = r.edge  -- Join streets on the edge ID
         WHERE s.safety IS NOT NULL
-        GROUP BY r.path_id
-        ORDER BY total_cost ASC  -- Order by total cost to get the least costly paths
-        LIMIT 3  -- Limit to the top 3 least cost paths
+    ),
+    safest_route_safety AS (
+        -- Calculate the total cost and average safety score for the safest path
+        SELECT
+            SUM(s.length)/1000 AS total_cost,  -- The total cost of the path
+            AVG(s.safety) AS avg_safety_score,  -- Average safety score of the streets in the path
+			ST_Union(s.geometry) AS geom
+        FROM safest_route r
+        JOIN streets s ON s.id = r.edge  -- Join streets on the edge ID
+        WHERE s.safety IS NOT NULL
     )
-    -- Convert the result to GeoJSON
+    -- Return the shortest and safest route as GeoJSON feature collections
     SELECT row_to_json(fc)
     FROM (
-        SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features
-        FROM (
-            SELECT 'Feature' AS type, 
-                  ST_AsGeoJSON(s.geometry)::json AS geometry,  -- Convert the street geometry to GeoJSON
-                  row_to_json((SELECT l FROM (SELECT r.path_id, rs.total_cost, rs.avg_safety_score, s.name, s.prim_contr_factor) AS l)) AS properties
-            FROM streets s
-            JOIN routes r ON s.id = r.edge  -- Join the streets with routes
-            JOIN route_safety rs ON r.path_id = rs.path_id  -- Join to get the calculated safety score and cost
-        ) AS f
+      SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features
+      FROM (
+        -- Shortest route feature
+        SELECT 'Feature' AS type, 
+          ST_AsGeoJSON(s.geometry)::json AS geometry,
+          json_build_object(
+            'route_type', 'shortest', 
+            'total_cost', ra.total_cost,  -- Aggregated total cost
+            'avg_safety_score', ra.avg_safety_score,  -- Aggregated average safety score
+            'street_details', array_agg(json_build_object(
+              'name', s.name, 
+              'prim_contr_factor', s.prim_contr_factor  -- Collect street-level details
+            ))
+          ) AS properties
+        FROM streets s
+        JOIN shortest_route r ON s.id = r.edge
+        CROSS JOIN shortest_route_safety ra
+        GROUP BY ra.total_cost, ra.avg_safety_score, s.geometry
+
+        UNION ALL  -- Combine both shortest and safest route results
+
+        -- Safest route feature
+        SELECT 'Feature' AS type, 
+          ST_AsGeoJSON(s.geometry)::json AS geometry,
+          json_build_object(
+            'route_type', 'safest', 
+            'total_cost', ra.total_cost,  -- Aggregated total cost
+            'avg_safety_score', ra.avg_safety_score,  -- Aggregated average safety score
+            'street_details', array_agg(json_build_object(
+              'name', s.name, 
+              'prim_contr_factor', s.prim_contr_factor  -- Collect street-level details
+            ))
+          ) AS properties
+        FROM streets s
+        JOIN safest_route r ON s.id = r.edge  -- Join streets from the safest route
+        CROSS JOIN safest_route_safety ra  -- Join the aggregated route details (total cost and safety)
+        GROUP BY ra.total_cost, ra.avg_safety_score, s.geometry
+      ) AS f
     ) AS fc;
    `;
   pool.query(query, [lon1, lat1, lon2, lat2], (err, dbResponse) => {
