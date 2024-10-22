@@ -275,8 +275,8 @@ $(document).ready(function() {
         const inj = $('#inj_total').val();
         const lat = $('#latitude').val();
         const lnt = $('#longitude').val();
-        const prim_contr = $('#prim_contr').val();
-        const traffic_co = $('#traffic_co').val();
+        const prim_contr = $('#prim_contr').val().toUpperCase();
+        const traffic_co = $('#traffic_co').val().toUpperCase();
 
         // Validate date (assuming isValidDate is a function you've defined)
         if (!isValidDate(date)) {
